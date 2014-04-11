@@ -1,12 +1,18 @@
 from django.conf.urls import patterns, include, url
 
 from django.contrib import admin
+
+from LikeTheMovies import settings
+
 admin.autodiscover()
 
-urlpatterns = patterns('',
-    # Examples:
-    # url(r'^$', 'LikeTheMovies.views.home', name='home'),
-    # url(r'^blog/', include('blog.urls')),
+urlpatterns = patterns(
+    '',
 
     url(r'^admin/', include(admin.site.urls)),
+
+    (r'^static/(?P<path>.*)$', 'django.views.static.serve',
+     {'document_root': settings.STATIC_ROOT}),
+    (r'^static/media/(?P<path>.*)$', 'django.views.static.serve',
+     {'document_root': settings.MEDIA_ROOT, 'show_indexes': True}),
 )
