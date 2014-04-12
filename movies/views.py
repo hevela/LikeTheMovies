@@ -66,7 +66,7 @@ save_media = {
 
 def crawl():
 
-    for i in range(1, 9999999):
+    for i in range(652, 9999999):
         url = BASE_URL.format(str(i).zfill(7))
         print url
         response, code = parse_page(url)
@@ -78,26 +78,34 @@ def crawl():
 
 
 def parse_page(url):
+
+    id_imdb = re.search('tt\d{7}', url, re.IGNORECASE)
+    if id_imdb:
+        imdb_id = id_imdb.group(0)
+    else:
+        print "unknown imdb format"
+        imdb_id = url
+
+    media_metadata = dict(imdb_id=imdb_id)
+
     req = urllib2.Request(url, headers={'User-Agent': "Magic Browser"})
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except urllib2.HTTPError:
+        print messages.errors['remote_404']
+        return media_metadata, 400
+
     text = response.read()
     code = response.getcode()
     if 200 >= code < 400:
         soup = BeautifulSoup(text)
 
-        id_imdb = re.search('tt\d{7}', url, re.IGNORECASE)
-        if id_imdb:
-            imdb_id = id_imdb.group(0)
-        else:
-            print "unknown imdb format"
-            imdb_id = url
-
-        media_metadata = dict(
-            imdb_id=imdb_id,
-            media_type=get_meta_content({'property': 'og:type'}, soup),
-            title=get_meta_content({'property': 'og:title'}, soup),
-            description=get_meta_content({'property': 'og:description'}, soup)
-        )
+        media_metadata['media_type'] = get_meta_content(
+            {'property': 'og:type'}, soup)
+        media_metadata['title'] = get_meta_content(
+            {'property': 'og:title'}, soup)
+        media_metadata['description'] = get_meta_content(
+            {'property': 'og:description'}, soup)
 
         image_url = get_meta_content({'property': 'og:image'}, soup)
         media_metadata['media_image'] = get_image(
