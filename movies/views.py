@@ -6,11 +6,66 @@ from django.shortcuts import render
 from helpers import messages
 
 from LikeTheMovies import settings
+from movies.models import NotFound, TvSerie, Movie, TvEpisode
 
 NO_IMG = 'http://ia.media-imdb.com/images/G/01/imdb/images/logos/' \
            'imdb_fb_logo-1730868325._V379391653_.png'
 
 BASE_URL = 'http://www.imdb.com/title/tt{0}'
+
+
+def add_tv_series(media_metadata):
+    tvserie = TvSerie(
+        title=media_metadata['title'],
+        description=media_metadata['description'],
+        image=media_metadata['media_image'],
+        year=media_metadata['year'],
+        imdb_id=media_metadata['imdb_id']
+    )
+    tvserie.save()
+    return tvserie
+
+
+def add_tv_episode(media_metadata):
+    try:
+        parent = TvSerie.objects.get(
+            imdb_id=media_metadata['parent']['imdb_id'])
+    except TvSerie.DoesNotExist:
+        parent = add_tv_series(media_metadata['parent'])
+
+    episode = TvEpisode(
+        serie=parent,
+        title=media_metadata['title'],
+        description=media_metadata['description'],
+        image=media_metadata['media_image'],
+        year=media_metadata['year'],
+        director=media_metadata['director'],
+        imdb_id=media_metadata['imdb_id'],
+        episode_info=media_metadata['episode_info']
+    )
+    episode.save()
+    return episode
+
+
+def add_movie(media_metadata):
+    movie = Movie(
+        title=media_metadata['title'],
+        description=media_metadata['description'],
+        image=media_metadata['media_image'],
+        year=media_metadata['year'],
+        director=media_metadata['director'],
+        imdb_id=media_metadata['imdb_id'],
+    )
+    movie.save()
+    return movie
+
+
+save_media = {
+    'video.movie': add_movie,
+    'video.episode': add_tv_episode,
+    'video.tv_show': add_tv_series,
+}
+
 
 def crawl():
 
@@ -19,6 +74,10 @@ def crawl():
         print url
         response, code = parse_page(url)
 
+        if code != 400:
+            save_media[response['media_type']](response)
+        else:
+            NotFound(imdb_id=response['imdb_id']).save()
 
 
 def parse_page(url):
@@ -29,7 +88,15 @@ def parse_page(url):
     if 200 >= code < 400:
         soup = BeautifulSoup(text)
 
+        id_imdb = re.search('tt\d{7}', url, re.IGNORECASE)
+        if id_imdb:
+            imdb_id = id_imdb.group(0)
+        else:
+            print "unknown imdb format"
+            imdb_id = url
+
         media_metadata = dict(
+            imdb_id=imdb_id,
             media_type=get_meta_content({'property': 'og:type'}, soup),
             title=get_meta_content({'property': 'og:title'}, soup),
             description=get_meta_content({'property': 'og:description'}, soup)

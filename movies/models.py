@@ -26,7 +26,6 @@ class TvSerie(models.Model):
     description = models.TextField(null=True, blank=True)
     image = models.CharField(max_length=144, null=True, blank=True)
     year = models.IntegerField(null=True, blank=True)
-    director = models.CharField(max_length=128)
     imdb_id = models.CharField(max_length=16)
 
     def __unicode__(self):
