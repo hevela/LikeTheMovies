@@ -15,14 +15,13 @@ BASE_URL = 'http://www.imdb.com/title/tt{0}'
 
 
 def add_tv_series(media_metadata):
-    tvserie = TvSerie(
+    tvserie, created = TvSerie.objects.get_or_create(
         title=media_metadata['title'],
         description=media_metadata['description'],
         image=media_metadata['media_image'],
         year=media_metadata['year'],
         imdb_id=media_metadata['imdb_id']
     )
-    tvserie.save()
     return tvserie
 
 
@@ -33,7 +32,7 @@ def add_tv_episode(media_metadata):
     except TvSerie.DoesNotExist:
         parent = add_tv_series(media_metadata['parent'])
 
-    episode = TvEpisode(
+    episode, created = TvEpisode.objects.get_or_create(
         serie=parent,
         title=media_metadata['title'],
         description=media_metadata['description'],
@@ -43,12 +42,11 @@ def add_tv_episode(media_metadata):
         imdb_id=media_metadata['imdb_id'],
         episode_info=media_metadata['episode_info']
     )
-    episode.save()
     return episode
 
 
 def add_movie(media_metadata):
-    movie = Movie(
+    movie, created = Movie.objects.get_or_create(
         title=media_metadata['title'],
         description=media_metadata['description'],
         image=media_metadata['media_image'],
@@ -56,7 +54,6 @@ def add_movie(media_metadata):
         director=media_metadata['director'],
         imdb_id=media_metadata['imdb_id'],
     )
-    movie.save()
     return movie
 
 
@@ -103,7 +100,8 @@ def parse_page(url):
         )
 
         image_url = get_meta_content({'property': 'og:image'}, soup)
-        media_metadata['media_image'] = get_image(image_url)
+        media_metadata['media_image'] = get_image(
+            image_url, folder=media_metadata['media_type'].partition('.')[2])
 
         if media_metadata['media_type'] == 'video.episode':
             tv_serie_metadata(media_metadata, soup)
@@ -119,10 +117,16 @@ def parse_page(url):
             else:
                 media_metadata['year'] = h1.findAll('a')[0].contents[0]
                 if media_metadata['media_type'] == 'video.movie':
-                    director = soup.findAll('div',
-                                            attrs={'itemprop': 'director'})[0]
-                    media_metadata['director'] = \
-                        director.findAll('span')[0].contents[0]
+                    try:
+                        director = soup.findAll(
+                            'div',
+                            attrs={'itemprop': 'director'})[0]
+                    except IndexError:
+                        #No director
+                        media_metadata['director'] = ''
+                    else:
+                        media_metadata['director'] = \
+                            director.findAll('span')[0].contents[0]
 
         return media_metadata, 200
 
@@ -140,9 +144,12 @@ def tv_serie_metadata(media_metadata, soup):
     try:
         director = soup.findAll('div', attrs={'itemprop': 'director'})[0]
     except IndexError:
-        director = soup.findAll('div', attrs={'itemprop': 'name'})[0]
-
-    media_metadata['director'] = director.findAll('span')[0].contents[0]
+        try:
+            director = soup.findAll('div', attrs={'itemprop': 'name'})[0]
+        except IndexError:
+            media_metadata['director'] = ''
+        else:
+            media_metadata['director'] = director.findAll('span')[0].contents[0]
 
     #get parent info
     parent_url = h2.contents[1]['href']
@@ -181,7 +188,7 @@ def get_meta_content(meta, soup):
                 return meta_content
 
 
-def get_image(image_url):
+def get_image(image_url, folder=''):
     image_url = image_url.strip()
     if image_url and image_url != NO_IMG:
         opener1 = urllib2.build_opener()
@@ -190,6 +197,8 @@ def get_image(image_url):
         filename = image_url.partition("http://ia.media-imdb.com/images/M/")
         path = settings.STATIC_ROOT
         img_filename = filename[2]
+        if folder:
+            path += folder + '/'
         filename = path + img_filename
         print img_filename  # test
         fout = open(filename, "wb")
