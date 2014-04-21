@@ -64,9 +64,9 @@ save_media = {
 }
 
 
-def crawl():
+def crawl(start=1):
 
-    for i in range(652, 9999999):
+    for i in range(start, 9999999):
         url = BASE_URL.format(str(i).zfill(7))
         print url
         response, code = parse_page(url)
@@ -124,17 +124,18 @@ def parse_page(url):
                 media_metadata['year'] = year_re.group(0)
             else:
                 media_metadata['year'] = h1.findAll('a')[0].contents[0]
-                if media_metadata['media_type'] == 'video.movie':
-                    try:
-                        director = soup.findAll(
-                            'div',
-                            attrs={'itemprop': 'director'})[0]
-                    except IndexError:
-                        #No director
-                        media_metadata['director'] = ''
-                    else:
-                        media_metadata['director'] = \
-                            director.findAll('span')[0].contents[0]
+
+            if media_metadata['media_type'] == 'video.movie':
+                try:
+                    director = soup.findAll(
+                        'div',
+                        attrs={'itemprop': 'director'})[0]
+                except IndexError:
+                    #No director
+                    media_metadata['director'] = ''
+                else:
+                    media_metadata['director'] = \
+                        director.findAll('span')[0].contents[0]
 
         return media_metadata, 200
 
@@ -158,6 +159,8 @@ def tv_serie_metadata(media_metadata, soup):
             media_metadata['director'] = ''
         else:
             media_metadata['director'] = director.findAll('span')[0].contents[0]
+    else:
+        media_metadata['director'] = director.findAll('span')[0].contents[0]
 
     #get parent info
     parent_url = h2.contents[1]['href']
@@ -199,8 +202,11 @@ def get_meta_content(meta, soup):
 def get_image(image_url, folder=''):
     image_url = image_url.strip()
     if image_url and image_url != NO_IMG:
-        opener1 = urllib2.build_opener()
-        page1 = opener1.open(image_url)
+        try:
+            opener1 = urllib2.build_opener()
+            page1 = opener1.open(image_url)
+        except urllib2.HTTPError:
+            return ''
         my_picture = page1.read()
         filename = image_url.partition("http://ia.media-imdb.com/images/M/")
         path = settings.STATIC_ROOT

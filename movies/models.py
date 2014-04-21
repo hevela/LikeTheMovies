@@ -18,7 +18,7 @@ class Movie(models.Model):
     imdb_id = models.CharField(max_length=16)
 
     def __unicode__(self):
-        return self.title + '(' + str(self.year) + ')'
+        return self.title
 
 
 class TvSerie(models.Model):
