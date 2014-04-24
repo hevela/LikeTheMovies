@@ -115,15 +115,19 @@ def parse_page(url):
             tv_serie_metadata(media_metadata, soup)
         else:
             #year
-            h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
-            date_airing = h1.findAll('span',
-                                     attrs={'class': 'nobr'})[0].contents[0]
-            year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
-            if year_re:
-                #year without link, like in tv series
-                media_metadata['year'] = year_re.group(0)
+            try:
+                h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
+                date_airing = h1.findAll('span',
+                                         attrs={'class': 'nobr'})[0].contents[0]
+            except IndexError:
+                media_metadata['year'] = None
             else:
-                media_metadata['year'] = h1.findAll('a')[0].contents[0]
+                year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
+                if year_re:
+                    #year without link, like in tv series
+                    media_metadata['year'] = year_re.group(0)
+                else:
+                    media_metadata['year'] = h1.findAll('a')[0].contents[0]
 
             if media_metadata['media_type'] == 'video.movie':
                 try:
@@ -147,7 +151,12 @@ def tv_serie_metadata(media_metadata, soup):
     h2 = soup.findAll('h2', attrs={'class': 'tv_header'})[0]
 
     #get episode info
-    info = h2.findAll('span', attrs={'class': 'nobr'})[0].contents[0].strip()
+    try:
+        info = h2.findAll('span',
+                          attrs={'class': 'nobr'})[0].contents[0].strip()
+    except IndexError:
+        info = ''
+
     media_metadata['episode_info'] = info
 
     try:
@@ -169,13 +178,15 @@ def tv_serie_metadata(media_metadata, soup):
     media_metadata['parent'] = parse_page(parent_url)[0]
 
     #year
-    h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
-    date_airing = h1.findAll('span', attrs={'class': 'nobr'})[0].contents[0]
-    year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
-    if year_re:
-        media_metadata['year'] = year_re.group(0)
-
-
+    try:
+        h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
+        date_airing = h1.findAll('span', attrs={'class': 'nobr'})[0].contents[0]
+    except IndexError:
+        media_metadata['year'] = None
+    else:
+        year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
+        if year_re:
+            media_metadata['year'] = year_re.group(0)
 
 
 def get_meta_content(meta, soup):
