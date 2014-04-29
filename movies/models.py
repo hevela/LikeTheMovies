@@ -44,3 +44,14 @@ class TvEpisode(models.Model):
 
     def __unicode__(self):
         return self.serie.title + '-' + self.title + '(' + str(self.year) + ')'
+
+
+class Game(models.Model):
+    title = models.CharField(max_length=128)
+    description = models.TextField(null=True, blank=True)
+    image = models.CharField(max_length=144, null=True, blank=True)
+    year = models.IntegerField(null=True, blank=True)
+    imdb_id = models.CharField(max_length=16)
+
+    def __unicode__(self):
+        return self.title + '(' + str(self.year) + ')'

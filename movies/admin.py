@@ -4,3 +4,4 @@ from movies import models
 admin.site.register(models.Movie)
 admin.site.register(models.TvSerie)
 admin.site.register(models.TvEpisode)
+admin.site.register(models.Game)

@@ -6,7 +6,7 @@ from django.shortcuts import render
 from helpers import messages
 
 from LikeTheMovies import settings
-from movies.models import NotFound, TvSerie, Movie, TvEpisode
+from movies.models import NotFound, TvSerie, Movie, TvEpisode, Game
 
 NO_IMG = 'http://ia.media-imdb.com/images/G/01/imdb/images/logos/' \
            'imdb_fb_logo-1730868325._V379391653_.png'
@@ -23,6 +23,17 @@ def add_tv_series(media_metadata):
         imdb_id=media_metadata['imdb_id']
     )
     return tvserie
+
+
+def add_game(media_metadata):
+    game, created = Game.objects.get_or_create(
+        title=media_metadata['title'],
+        description=media_metadata['description'],
+        image=media_metadata['media_image'],
+        year=media_metadata['year'],
+        imdb_id=media_metadata['imdb_id']
+    )
+    return game
 
 
 def add_tv_episode(media_metadata):
@@ -61,6 +72,7 @@ save_media = {
     'video.movie': add_movie,
     'video.episode': add_tv_episode,
     'video.tv_show': add_tv_series,
+    'game': add_game,
 }
 
 
