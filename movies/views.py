@@ -151,7 +151,7 @@ def parse_page(url):
         if media_metadata['media_type'] == 'video.episode':
             tv_serie_metadata(media_metadata, soup)
         else:
-            #year
+            # year
             try:
                 h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
                 date_airing = h1.findAll('span',
@@ -187,7 +187,7 @@ def parse_page(url):
 def tv_serie_metadata(media_metadata, soup):
     h2 = soup.findAll('h2', attrs={'class': 'tv_header'})[0]
 
-    #get episode info
+    # get episode info
     try:
         info = h2.findAll('span',
                           attrs={'class': 'nobr'})[0].contents[0].strip()
@@ -208,13 +208,13 @@ def tv_serie_metadata(media_metadata, soup):
     else:
         media_metadata['director'] = director.findAll('span')[0].contents[0]
 
-    #get parent info
+    # get parent info
     parent_url = h2.contents[1]['href']
     parent_identifier = parent_url.partition('/title/tt')[2]
     parent_url = BASE_URL.format(parent_identifier)
     media_metadata['parent'] = parse_page(parent_url)[0]
 
-    #year
+    # year
     try:
         h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
         date_airing = h1.findAll('span', attrs={'class': 'nobr'})[0].contents[0]
