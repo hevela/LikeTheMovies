@@ -1,15 +1,20 @@
+import socket
 import re
 import urllib2
 from bs4 import BeautifulSoup
 from django.shortcuts import render
+import time
 
 from helpers import messages
 
 from LikeTheMovies import settings
 from movies.models import NotFound, TvSerie, Movie, TvEpisode, Game
 
-NO_IMG = 'http://ia.media-imdb.com/images/G/01/imdb/images/logos/' \
-           'imdb_fb_logo-1730868325._V379391653_.png'
+NO_IMG = ['http://ia.media-imdb.com/images/G/01/imdb/images/logos/'
+          'imdb_fb_logo-1730868325._V379391653_.png',
+          'http://ia.media-imdb.com/images/G/01/imdb/images/logos/'
+          'imdb_fb_logo-1730868325._CB379391653_.png']
+
 
 BASE_URL = 'http://www.imdb.com/title/tt{0}'
 
@@ -17,10 +22,12 @@ BASE_URL = 'http://www.imdb.com/title/tt{0}'
 def add_tv_series(media_metadata):
     tvserie, created = TvSerie.objects.get_or_create(
         title=media_metadata['title'],
-        description=media_metadata['description'],
-        image=media_metadata['media_image'],
-        year=media_metadata['year'],
-        imdb_id=media_metadata['imdb_id']
+        imdb_id=media_metadata['imdb_id'],
+        defaults={
+            "description": media_metadata['description'],
+            "image": media_metadata['media_image'],
+            "year": media_metadata['year'],
+        }
     )
     return tvserie
 
@@ -83,10 +90,25 @@ def crawl(start=1):
         print url
         response, code = parse_page(url)
 
-        if code != 400:
+        if code < 400:
             save_media[response['media_type']](response)
+        elif code == 400:
+            NotFound.objects.get_or_create(
+                imdb_id=response['imdb_id'])
         else:
-            NotFound(imdb_id=response['imdb_id']).save()
+            print "Non controled error, time out?"
+
+
+def automatic():
+    last_movie = Movie.objects.last().imdb_id
+    last_imdb_id = last_movie.replace("tt0", "")
+    try:
+        print last_imdb_id
+        crawl(int(last_imdb_id))
+    except:
+        print "exception occured"
+        time.sleep(10)
+        automatic()
 
 
 def parse_page(url):
@@ -102,9 +124,12 @@ def parse_page(url):
 
     req = urllib2.Request(url, headers={'User-Agent': "Magic Browser"})
     try:
-        response = urllib2.urlopen(req)
+        response = urllib2.urlopen(req, timeout=5)
     except urllib2.HTTPError:
         print messages.errors['remote_404']
+        return media_metadata, 400
+    except socket.timeout:
+        print messages.errors['remote_timeout']
         return media_metadata, 400
 
     text = response.read()
@@ -136,7 +161,7 @@ def parse_page(url):
             else:
                 year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
                 if year_re:
-                    #year without link, like in tv series
+                    # year without link, like in tv series
                     media_metadata['year'] = year_re.group(0)
                 else:
                     media_metadata['year'] = h1.findAll('a')[0].contents[0]
@@ -147,7 +172,7 @@ def parse_page(url):
                         'div',
                         attrs={'itemprop': 'director'})[0]
                 except IndexError:
-                    #No director
+                    # No director
                     media_metadata['director'] = ''
                 else:
                     media_metadata['director'] = \
@@ -224,7 +249,7 @@ def get_meta_content(meta, soup):
 
 def get_image(image_url, folder=''):
     image_url = image_url.strip()
-    if image_url and image_url != NO_IMG:
+    if image_url and image_url not in NO_IMG:
         try:
             opener1 = urllib2.build_opener()
             page1 = opener1.open(image_url)
@@ -237,10 +262,8 @@ def get_image(image_url, folder=''):
         if folder:
             path += folder + '/'
         filename = path + img_filename
-        print img_filename  # test
         fout = open(filename, "wb")
         fout.write(my_picture)
-        #la guardo en /temp
         fout.close()
         return img_filename
     return ''

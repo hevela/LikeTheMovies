@@ -88,7 +88,15 @@ STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(PROJECT_PATH, 'templates/static/')
 
+STATICFILES_DIRS = (
+    # Put strings here, like "/home/html/static" or "C:/www/django/static".
+    # Always use forward slashes, even on Windows.
+    # Don't forget to use absolute paths, not relative paths.
+)
 
 MEDIA_URL = '/static/media/'
 
 MEDIA_ROOT = os.path.join(PROJECT_PATH, 'templates/static/media/')
+
+TEMPLATE_DIRS = (os.path.join(os.path.dirname(__file__),
+                              '..', 'templates').replace('\\', '/'),)
