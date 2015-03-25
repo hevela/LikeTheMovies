@@ -58,5 +58,5 @@ def login_user(request):
 def index(request):
     saved_pks = SavedMovie.objects.filter(user=request.user)\
         .values_list('movie__pk', flat=True)
-    movies = Movie.objects.exclude(pk__in=saved_pks)[:16]
+    movies = Movie.objects.exclude(pk__in=saved_pks).aggregate()[:16]
 

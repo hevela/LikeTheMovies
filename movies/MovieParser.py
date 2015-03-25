@@ -47,6 +47,12 @@ class MovieSaver(object):
                 imdb_id=media_metadata['parent']['imdb_id'])
         except TvSerie.DoesNotExist:
             parent = cls.add_tv_series(media_metadata['parent'])
+        except TvSerie.MultipleObjectsReturned:
+            parent = TvSerie.objects.filter(
+                imdb_id=media_metadata['parent']['imdb_id'])[0]
+            TvSerie.objects.filter(
+                imdb_id=media_metadata['parent']['imdb_id']
+            ).exclude(pk=parent.pk).delete()
 
         episode, created = TvEpisode.objects.get_or_create(
             serie=parent,
@@ -88,6 +94,14 @@ class MovieParser(object):
         'video.tv_show': MovieSaver.add_tv_series,
         'game': MovieSaver.add_game,
     }
+
+    NOTFOUND = 404
+    TIMEOUT = 410
+    SUCCESSCODE = 200
+    ERRORSBEGINAT = 400
+    SUCCESSBEGINAT = 200
+    IMAGEPREFIX = "http://ia.media-imdb.com/images/M/"
+
     start = 1
 
     def __init__(self, autostart=False, start=1):
@@ -122,9 +136,9 @@ class MovieParser(object):
             print url
             response, code = self.__parse_page(url)
 
-            if code < 400:
+            if code < self.ERRORSBEGINAT:
                 self.save_media[response['media_type']](response)
-            elif code == 400:
+            elif code == self.NOTFOUND:
                 NotFound.objects.get_or_create(
                     imdb_id=response['imdb_id'])
             else:
@@ -141,13 +155,34 @@ class MovieParser(object):
             time.sleep(10)
             self.automatic()
 
+    def get_image(self, image_url, folder=''):
+        image_url = image_url.strip()
+        if image_url and image_url not in self.NO_IMG:
+            try:
+                opener1 = urllib2.build_opener()
+                page1 = opener1.open(image_url)
+            except urllib2.HTTPError:
+                return ''
+            my_picture = page1.read()
+            filename = image_url.partition(self.IMAGEPREFIX)
+            path = settings.STATIC_ROOT
+            img_filename = filename[2]
+            if folder:
+                path += folder + '/'
+            filename = path + img_filename
+            fout = open(filename, "wb")
+            fout.write(my_picture)
+            fout.close()
+            return img_filename
+        return ''
+
     def __parse_page(self, url):
 
         id_imdb = re.search('tt\d{7}', url, re.IGNORECASE)
         if id_imdb:
             imdb_id = id_imdb.group(0)
         else:
-            print "unknown imdb format"
+            print messages.errors['id_error']
             imdb_id = url
 
         media_metadata = dict(imdb_id=imdb_id)
@@ -157,14 +192,14 @@ class MovieParser(object):
             response = urllib2.urlopen(req, timeout=self.timeout)
         except urllib2.HTTPError:
             print messages.errors['remote_404']
-            return media_metadata, 400
+            return media_metadata, self.NOTFOUND
         except socket.timeout:
             print messages.errors['remote_timeout']
-            return media_metadata, 400
+            self.__parse_page(url)
 
         text = response.read()
         code = response.getcode()
-        if 200 >= code < 400:
+        if self.SUCCESSBEGINAT >= code < self.ERRORSBEGINAT:
             soup = BeautifulSoup(text)
 
             media_metadata['media_type'] = self.__get_meta_content(
@@ -210,10 +245,10 @@ class MovieParser(object):
                         media_metadata['director'] = \
                             director.findAll('span')[0].contents[0]
 
-            return media_metadata, 200
+            return media_metadata, self.SUCCESSCODE
 
         else:
-            return messages.errors['remote_404'], 400
+            return messages.errors['remote_404'], self.NOTFOUND
 
     def __tv_serie_metadata(self, media_metadata, soup):
         h2 = soup.findAll('h2', attrs={'class': 'tv_header'})[0]
@@ -258,24 +293,3 @@ class MovieParser(object):
             if year_re:
                 media_metadata['year'] = year_re.group(0)
         return
-
-    def get_image(self, image_url, folder=''):
-        image_url = image_url.strip()
-        if image_url and image_url not in self.NO_IMG:
-            try:
-                opener1 = urllib2.build_opener()
-                page1 = opener1.open(image_url)
-            except urllib2.HTTPError:
-                return ''
-            my_picture = page1.read()
-            filename = image_url.partition("http://ia.media-imdb.com/images/M/")
-            path = settings.STATIC_ROOT
-            img_filename = filename[2]
-            if folder:
-                path += folder + '/'
-            filename = path + img_filename
-            fout = open(filename, "wb")
-            fout.write(my_picture)
-            fout.close()
-            return img_filename
-        return ''
