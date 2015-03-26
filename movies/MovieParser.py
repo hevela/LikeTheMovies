@@ -195,60 +195,62 @@ class MovieParser(object):
             return media_metadata, self.NOTFOUND
         except socket.timeout:
             print messages.errors['remote_timeout']
+            time.sleep(10)
             self.__parse_page(url)
-
-        text = response.read()
-        code = response.getcode()
-        if self.SUCCESSBEGINAT >= code < self.ERRORSBEGINAT:
-            soup = BeautifulSoup(text)
-
-            media_metadata['media_type'] = self.__get_meta_content(
-                {'property': 'og:type'}, soup)
-            media_metadata['title'] = self.__get_meta_content(
-                {'property': 'og:title'}, soup)
-            media_metadata['description'] = self.__get_meta_content(
-                {'property': 'og:description'}, soup)
-
-            image_url = self.__get_meta_content({'property': 'og:image'}, soup)
-            media_metadata['media_image'] = self.get_image(
-                image_url,
-                folder=media_metadata['media_type'].partition('.')[2])
-
-            if media_metadata['media_type'] == 'video.episode':
-                self.__tv_serie_metadata(media_metadata, soup)
-            else:
-                # year
-                try:
-                    h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
-                    date_airing = h1.findAll(
-                        'span',
-                        attrs={'class': 'nobr'})[0].contents[0]
-                except IndexError:
-                    media_metadata['year'] = None
-                else:
-                    year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
-                    if year_re:
-                        # year without link, like in tv series
-                        media_metadata['year'] = year_re.group(0)
-                    else:
-                        media_metadata['year'] = h1.findAll('a')[0].contents[0]
-
-                if media_metadata['media_type'] == 'video.movie':
-                    try:
-                        director = soup.findAll(
-                            'div',
-                            attrs={'itemprop': 'director'})[0]
-                    except IndexError:
-                        # No director
-                        media_metadata['director'] = ''
-                    else:
-                        media_metadata['director'] = \
-                            director.findAll('span')[0].contents[0]
-
-            return media_metadata, self.SUCCESSCODE
-
         else:
-            return messages.errors['remote_404'], self.NOTFOUND
+            text = response.read()
+            code = response.getcode()
+            if self.SUCCESSBEGINAT >= code < self.ERRORSBEGINAT:
+                soup = BeautifulSoup(text)
+
+                media_metadata['media_type'] = self.__get_meta_content(
+                    {'property': 'og:type'}, soup)
+                media_metadata['title'] = self.__get_meta_content(
+                    {'property': 'og:title'}, soup)
+                media_metadata['description'] = self.__get_meta_content(
+                    {'property': 'og:description'}, soup)
+
+                image_url = self.__get_meta_content({'property': 'og:image'}, soup)
+                media_metadata['media_image'] = self.get_image(
+                    image_url,
+                    folder=media_metadata['media_type'].partition('.')[2])
+
+                if media_metadata['media_type'] == 'video.episode':
+                    self.__tv_serie_metadata(media_metadata, soup)
+                else:
+                    # year
+                    try:
+                        h1 = soup.findAll('h1', attrs={'class': 'header'})[0]
+                        date_airing = h1.findAll(
+                            'span',
+                            attrs={'class': 'nobr'})[0].contents[0]
+                    except IndexError:
+                        media_metadata['year'] = None
+                    else:
+                        year_re = re.search('\d{4}', date_airing, re.IGNORECASE)
+                        if year_re:
+                            # year without link, like in tv series
+                            media_metadata['year'] = year_re.group(0)
+                        else:
+                            media_metadata['year'] = h1.findAll('a')[0].contents[0]
+
+                    if media_metadata['media_type'] == 'video.movie':
+                        try:
+                            director = soup.findAll(
+                                'div',
+                                attrs={'itemprop': 'director'})[0]
+                        except IndexError:
+                            # No director
+                            media_metadata['director'] = ''
+                        else:
+                            media_metadata['director'] = \
+                                director.findAll('span')[0].contents[0]
+
+                return media_metadata, self.SUCCESSCODE
+
+            else:
+                return messages.errors['remote_404'], self.NOTFOUND
+        return
 
     def __tv_serie_metadata(self, media_metadata, soup):
         h2 = soup.findAll('h2', attrs={'class': 'tv_header'})[0]

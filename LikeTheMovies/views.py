@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from random import sample
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.http import HttpResponseRedirect
@@ -58,5 +59,22 @@ def login_user(request):
 def index(request):
     saved_pks = SavedMovie.objects.filter(user=request.user)\
         .values_list('movie__pk', flat=True)
-    movies = Movie.objects.exclude(pk__in=saved_pks).aggregate()[:16]
+    movies = Movie.objects.exclude(pk__in=saved_pks)
+    movies = get_random_movies(movies, elements=20)
+    print movies
+
+
+def get_random_movies(movie_queryset, elements=10):
+    last_id = Movie.objects.last().pk
+    # make a list of 'n elements'
+    rand_ids = sample(xrange(1, last_id), elements)
+    movies = movie_queryset.objects.filter(pk__in=rand_ids)
+    if movies.count() < elements:
+        # missing ids, either deleted, or already in user list.
+        # complete the set
+        missing = elements - movies.count()
+        movies_list = list(movies)
+        movies_list += get_random_movies(movies, elements=missing)
+        movies = movies_list
+    return list(movies)
 
